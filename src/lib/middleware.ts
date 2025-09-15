@@ -6,7 +6,7 @@ import { logger } from './logger.js';
 
 const scalekit = new Scalekit(config.skEnvUrl, config.skClientId, config.skClientSecret);
 const EXPECTED_AUDIENCE = config.expectedAudience;
-export const WWWHeader = {HeaderKey: 'WWW-Authenticate',HeaderValue: `Bearer realm="OAuth", resource_metadata="http://localhost:${config.port}/.well-known/oauth-protected-resource"`}
+export const WWWHeader = {HeaderKey: 'WWW-Authenticate',HeaderValue: `Bearer realm="OAuth", resource_metadata="https://mcp.nexoraai.ch/.well-known/oauth-protected-resource"`}
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
