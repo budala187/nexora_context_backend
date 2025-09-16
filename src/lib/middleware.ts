@@ -37,22 +37,30 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         }
         console.log('=== END DEBUG ===');
 
-        // For tool calls, add scopes to be validated
-        let validateTokenOptions: TokenValidationOptions = { audience: [EXPECTED_AUDIENCE] };
-        const isToolCall = req.body?.method === 'tools/call';
-        if (isToolCall) {
-            const toolName = req.body?.params?.name as keyof typeof TOOLS;
-            if (toolName && (toolName in TOOLS)) {
-                validateTokenOptions.requiredScopes = TOOLS[toolName].requiredScopes;
-            }
-            logger.info(`Verifying scopes for tool call: ${toolName}`, { requiredScopes: validateTokenOptions.requiredScopes });
-        }
-
-        await scalekit.validateToken(token, validateTokenOptions);
-        logger.info('Authentication successful');
-        next();
-    } catch (err) {
-        logger.warn('Unauthorized request', { error: err instanceof Error ? err.message : String(err) });
-        return res.status(401).set(WWWHeader.HeaderKey, WWWHeader.HeaderValue).end();
-    }
-}
+         // For tool calls, add scopes to be validated
+         let validateTokenOptions: TokenValidationOptions = { audience: [EXPECTED_AUDIENCE] };
+         const isToolCall = req.body?.method === 'tools/call';
+         if (isToolCall) {
+             const toolName = req.body?.params?.name as keyof typeof TOOLS;
+             if (toolName && (toolName in TOOLS)) {
+                 validateTokenOptions.requiredScopes = TOOLS[toolName].requiredScopes;
+             }
+             logger.info(`Verifying scopes for tool call: ${toolName}`, { requiredScopes: validateTokenOptions.requiredScopes });
+         }
+ 
+         const validationResult = await scalekit.validateToken(token, validateTokenOptions);
+         
+         // Extract Clerk user ID from the token
+         const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+         const clerkUserId = payload.sub; // This is the Clerk user ID
+         
+         // You can now use clerkUserId in your application
+         console.log('Clerk User ID:', clerkUserId);
+         
+         logger.info('Authentication successful');
+         next();
+     } catch (err) {
+         logger.warn('Unauthorized request', { error: err instanceof Error ? err.message : String(err) });
+         return res.status(401).set(WWWHeader.HeaderKey, WWWHeader.HeaderValue).end();
+     }
+ }
