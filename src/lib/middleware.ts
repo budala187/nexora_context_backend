@@ -24,6 +24,19 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             throw new Error('Missing or invalid Bearer token');
         }
 
+        // DEBUG: Log the token to see what the client is sending
+        console.log('=== DEBUG: Token received from client ===');
+        console.log('Token:', token);
+        console.log('Token length:', token.length);
+        // Decode the JWT payload (middle part) to see what's inside
+        try {
+            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+            console.log('Decoded token payload:', JSON.stringify(payload, null, 2));
+        } catch (e) {
+            console.log('Could not decode token payload:', e);
+        }
+        console.log('=== END DEBUG ===');
+
         // For tool calls, add scopes to be validated
         let validateTokenOptions: TokenValidationOptions = { audience: [EXPECTED_AUDIENCE] };
         const isToolCall = req.body?.method === 'tools/call';
