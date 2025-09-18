@@ -32,6 +32,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             throw new Error('Missing or invalid Bearer token');
         }
 
+        logger.debug('Access token received', { token });
+
         // Validate token without scope requirements
         const validateTokenOptions: TokenValidationOptions = { audience: [EXPECTED_AUDIENCE] };
         await scalekit.validateToken(token, validateTokenOptions);
