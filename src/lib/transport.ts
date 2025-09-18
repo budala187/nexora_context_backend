@@ -8,15 +8,29 @@ export const setupTransportRoutes = (
   server: McpServer
 ) => {
   app.post('/', async (req, res) => {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // stateless
-    });
-    
-    await server.connect(transport);
     try {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined, // stateless
+      });
+      
+      // Connect the server to the transport
+      await server.connect(transport);
+      
+      // Handle the request
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
       logger.error('Transport error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          id: req.body?.id || null,
+          error: {
+            code: -32000,
+            message: 'Internal server error',
+            data: error instanceof Error ? error.message : String(error)
+          }
+        });
+      }
     }
   });
 };
