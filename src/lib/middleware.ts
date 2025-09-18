@@ -1,12 +1,20 @@
 import { Scalekit, TokenValidationOptions } from '@scalekit-sdk/node';
 import { NextFunction, Request, Response } from 'express';
 import { config } from '../config/config.js';
-import { TOOLS } from '../tools/index.js';
 import { logger } from './logger.js';
 
 const scalekit = new Scalekit(config.skEnvUrl, config.skClientId, config.skClientSecret);
 const EXPECTED_AUDIENCE = config.expectedAudience;
-export const WWWHeader = {HeaderKey: 'WWW-Authenticate',HeaderValue: `Bearer realm="OAuth", resource_metadata="https://mcp.nexoraai.ch/.well-known/oauth-protected-resource"`}
+export const WWWHeader = {HeaderKey: 'WWW-Authenticate',HeaderValue: `Bearer realm="OAuth", resource_metadata="https://server.nexoraai.ch/.well-known/oauth-protected-resource"`}
+
+// Extend Request type to include user info
+declare global {
+    namespace Express {
+        interface Request {
+            clerkUserId?: string;
+        }
+    }
+}
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
@@ -24,43 +32,39 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             throw new Error('Missing or invalid Bearer token');
         }
 
-        // DEBUG: Log the token to see what the client is sending
-        console.log('=== DEBUG: Token received from client ===');
-        console.log('Token:', token);
-        console.log('Token length:', token.length);
-        // Decode the JWT payload (middle part) to see what's inside
-        try {
-            const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-            console.log('Decoded token payload:', JSON.stringify(payload, null, 2));
-        } catch (e) {
-            console.log('Could not decode token payload:', e);
+        // Validate token without scope requirements
+        const validateTokenOptions: TokenValidationOptions = { audience: [EXPECTED_AUDIENCE] };
+        await scalekit.validateToken(token, validateTokenOptions);
+        
+        // Extract Clerk user ID from the token
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        const clerkUserId = payload.sub; // This is the Clerk user ID
+        
+        // Attach user ID to request for use in tools
+        req.clerkUserId = clerkUserId;
+        
+        // If this is a tool call, inject the clerkUserId into the context
+        if (req.body?.method === 'tools/call') {
+            if (!req.body.params) {
+                req.body.params = {};
+            }
+            if (!req.body.params.arguments) {
+                req.body.params.arguments = {};
+            }
+            if (!req.body.params.arguments.context) {
+                req.body.params.arguments.context = {};
+            }
+            
+            // Inject the clerkUserId into the tool arguments
+            req.body.params.arguments.context.clerkUserId = clerkUserId;
+            
+            logger.info(`Injected clerkUserId into tool context: ${clerkUserId}`);
         }
-        console.log('=== END DEBUG ===');
-
-         // For tool calls, add scopes to be validated
-         let validateTokenOptions: TokenValidationOptions = { audience: [EXPECTED_AUDIENCE] };
-         const isToolCall = req.body?.method === 'tools/call';
-         if (isToolCall) {
-             const toolName = req.body?.params?.name as keyof typeof TOOLS;
-             if (toolName && (toolName in TOOLS)) {
-                 validateTokenOptions.requiredScopes = TOOLS[toolName].requiredScopes;
-             }
-             logger.info(`Verifying scopes for tool call: ${toolName}`, { requiredScopes: validateTokenOptions.requiredScopes });
-         }
- 
-         const validationResult = await scalekit.validateToken(token, validateTokenOptions);
-         
-         // Extract Clerk user ID from the token
-         const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-         const clerkUserId = payload.sub; // This is the Clerk user ID
-         
-         // You can now use clerkUserId in your application
-         console.log('Clerk User ID:', clerkUserId);
-         
-         logger.info('Authentication successful');
-         next();
-     } catch (err) {
-         logger.warn('Unauthorized request', { error: err instanceof Error ? err.message : String(err) });
-         return res.status(401).set(WWWHeader.HeaderKey, WWWHeader.HeaderValue).end();
-     }
- }
+        
+        logger.info('Authentication successful', { clerkUserId });
+        next();
+    } catch (err) {
+        logger.warn('Unauthorized request', { error: err instanceof Error ? err.message : String(err) });
+        return res.status(401).set(WWWHeader.HeaderKey, WWWHeader.HeaderValue).end();
+    }
+}
