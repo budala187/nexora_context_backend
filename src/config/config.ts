@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-  serverName: 'Greeting MCP',
+  serverName: 'Nexora Context',
   serverVersion: '1.0.0',
   port: process.env.PORT || Number(3002),
   skEnvUrl: process.env.SK_ENV_URL || '',
