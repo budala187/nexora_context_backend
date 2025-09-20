@@ -69,7 +69,6 @@ Provide the answer:`;
     const response = await this.openai.chat.completions.create({
       model: OPENAI_MODEL_REFINER,
       messages: [{ role: 'system', content: prompt }],
-      temperature: 0.3,
       max_completion_tokens: 2000
     });
     

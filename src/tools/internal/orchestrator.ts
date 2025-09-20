@@ -75,7 +75,6 @@ If no additional tools are needed, return: {"additional_tools": [], "strategy": 
       const response = await this.openai.chat.completions.create({
         model: OPENAI_MODEL_ORCHESTRATOR,
         messages: [{ role: 'system', content: prompt }],
-        temperature: 0.2,
         response_format: { type: 'json_object' }
       });
       

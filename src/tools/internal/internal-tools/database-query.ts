@@ -129,7 +129,6 @@ Return ONLY a JSON array with 2 rephrased versions:
       const response = await this.openai.chat.completions.create({
         model: OPENAI_MODEL_REPHRASE,
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
         max_completion_tokens: 400
       });
       
@@ -189,7 +188,6 @@ Return ONLY a JSON array with 2 rephrased versions:
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.3,
       });
   
       const content = response.choices[0]?.message?.content || '{"entities": []}';
