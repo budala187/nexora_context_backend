@@ -1,6 +1,18 @@
-import { ToolPlan, Tool } from './orchestrator.js';
 import { getToolRegistry } from './tool-registry.js';
 import { logger } from '../../lib/logger.js';
+
+// Move interfaces here since we no longer import from orchestrator
+export interface Tool {
+  name: string;
+  params: any;
+  priority: number;
+  reason: string;
+}
+
+export interface ToolPlan {
+  tools: Tool[];
+  strategy: 'parallel' | 'sequential';
+}
 
 export interface ToolResult {
   tool: string;
@@ -10,121 +22,55 @@ export interface ToolResult {
   executionTime: number;
 }
 
-export interface ToolConfig {
-  clerkUserId?: string;
-  [key: string]: any;
-}
-
 export class Executor {
   async executeTools(plan: ToolPlan, clerkUserId?: string): Promise<ToolResult[]> {
-    const { tools, strategy } = plan;
+    const { tools } = plan;
     const toolRegistry = getToolRegistry();
     
-    logger.info(`🔧 Executing ${tools.length} tools (${strategy})`);
+    // Since we only have one tool now, simplify the logic
+    logger.info(`🔧 Executing database_query tool`);
     
-    if (strategy === 'parallel') {
-      return this.executeParallel(tools, toolRegistry, clerkUserId);
-    } else {
-      return this.executeSequential(tools, toolRegistry, clerkUserId);
-    }
-  }
-  
-  private async executeParallel(tools: Tool[], toolRegistry: any, clerkUserId?: string): Promise<ToolResult[]> {
-    const promises = tools.map(async (toolConfig) => {
-      const startTime = Date.now();
-      const tool = toolRegistry.getTool(toolConfig.name);
-      
-      if (!tool) {
-        return {
-          tool: toolConfig.name,
-          success: false,
-          error: `Tool not found: ${toolConfig.name}`,
-          executionTime: Date.now() - startTime
-        };
-      }
-      
-      try {
-        const config: ToolConfig = {
-          ...toolConfig.params,
-          clerkUserId,
-          name: toolConfig.name,
-          priority: toolConfig.priority,
-          reason: toolConfig.reason,
-          depth: toolConfig.params.depth || 'medium',
-          focus: toolConfig.params.focus || []
-        };
-        
-        const result = await tool.execute(toolConfig.params.query || '', config);
-        
-        return {
-          tool: toolConfig.name,
-          success: result.success,
-          data: result.data,
-          error: result.error,
-          executionTime: Date.now() - startTime
-        };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          tool: toolConfig.name,
-          success: false,
-          error: errorMessage,
-          executionTime: Date.now() - startTime
-        };
-      }
-    });
+    const toolConfig = tools[0]; // We know there's only one tool
+    const startTime = Date.now();
+    const tool = toolRegistry.getTool(toolConfig.name);
     
-    return await Promise.all(promises);
-  }
-  
-  private async executeSequential(tools: Tool[], toolRegistry: any, clerkUserId?: string): Promise<ToolResult[]> {
-    const results: ToolResult[] = [];
-    
-    for (const toolConfig of tools) {
-      const startTime = Date.now();
-      const tool = toolRegistry.getTool(toolConfig.name);
-      
-      if (!tool) {
-        results.push({
-          tool: toolConfig.name,
-          success: false,
-          error: `Tool not found: ${toolConfig.name}`,
-          executionTime: Date.now() - startTime
-        });
-        continue;
-      }
-      
-      try {
-        const config: ToolConfig = {
-          ...toolConfig.params,
-          clerkUserId,
-          name: toolConfig.name,
-          priority: toolConfig.priority,
-          reason: toolConfig.reason,
-          depth: toolConfig.params.depth || 'medium',
-          focus: toolConfig.params.focus || []
-        };
-        
-        const result = await tool.execute(toolConfig.params.query || '', config);
-        
-        results.push({
-          tool: toolConfig.name,
-          success: result.success,
-          data: result.data,
-          error: result.error,
-          executionTime: Date.now() - startTime
-        });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        results.push({
-          tool: toolConfig.name,
-          success: false,
-          error: errorMessage,
-          executionTime: Date.now() - startTime
-        });
-      }
+    if (!tool) {
+      return [{
+        tool: toolConfig.name,
+        success: false,
+        error: `Tool not found: ${toolConfig.name}`,
+        executionTime: Date.now() - startTime
+      }];
     }
     
-    return results;
+    try {
+      // Create config object that matches what base-tool expects
+      const config = {
+        clerkUserId,
+        name: toolConfig.name,
+        priority: toolConfig.priority,
+        reason: toolConfig.reason,
+        depth: 'medium',
+        focus: []
+      };
+      
+      const result = await tool.execute(toolConfig.params.query || '', config);
+      
+      return [{
+        tool: toolConfig.name,
+        success: result.success,
+        data: result.data,
+        error: result.error,
+        executionTime: Date.now() - startTime
+      }];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return [{
+        tool: toolConfig.name,
+        success: false,
+        error: errorMessage,
+        executionTime: Date.now() - startTime
+      }];
+    }
   }
 }

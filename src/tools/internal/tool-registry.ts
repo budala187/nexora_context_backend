@@ -1,10 +1,5 @@
 import { logger } from '../../lib/logger.js';
 import { BaseTool, ToolInfo } from './base-tool.js';
-
-// Import all tools
-import WebSearchTool from './internal-tools/web-search.js';
-import CalculatorTool from './internal-tools/calculator.js';
-import WeatherTool from './internal-tools/weather.js';
 import DatabaseQueryTool from './internal-tools/database-query.js';
 
 export class ToolRegistry {
@@ -19,9 +14,6 @@ export class ToolRegistry {
     
     // Register each tool
     const toolsToLoad = [
-      new WebSearchTool(),
-      new CalculatorTool(),
-      new WeatherTool(),
       new DatabaseQueryTool()
       // Add new tools here
     ];

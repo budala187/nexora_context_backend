@@ -77,7 +77,6 @@ Provide the answer:`;
     
     logger.info('=== REFINER OUTPUT DEBUG ===');
     logger.info('Refined content:', content);
-    logger.info(`Confidence: ${confidence}%`);
     logger.info('=== END REFINER OUTPUT ===');
     
     return {

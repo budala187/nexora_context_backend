@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { logger } from '../lib/logger.js';
 import { TOOLS } from './index.js';
 import { checkUsageLimit, trackUsage, decrementUsage } from '../lib/usage.js';
-import { Orchestrator } from './internal/orchestrator.js';
 import { Executor } from './internal/executor.js';
 import { Refiner } from './internal/refiner.js';
 
@@ -67,16 +66,26 @@ export function registerContextFinderTool(server: McpServer) {
           heroPoints: usageCheck.heroPoints
         });
         
-        // Initialize the three main components
-        const orchestrator = new Orchestrator();
+        // Initialize the two remaining components
         const executor = new Executor();
         const refiner = new Refiner();
         
-        // Step 1: Orchestrator - Select the best tools for this query
-        logger.info('📋 Starting orchestration...');
-        const toolPlan = await orchestrator.selectTools(query, context);
+        // Step 1: Create a fixed tool plan with only database_query
+        const toolPlan = {
+          tools: [{
+            name: 'database_query',
+            params: { 
+              query: query
+            },
+            priority: 1,
+            reason: 'Search user private data and uploaded documents'
+          }],
+          strategy: 'parallel' as const
+        };
         
-        // Step 2: Executor - Execute the selected tools
+        logger.info('📋 Using database_query tool');
+        
+        // Step 2: Executor - Execute the database_query tool
         logger.info('🔧 Starting execution...');
         const toolResults = await executor.executeTools(toolPlan, clerkUserId);
         
@@ -100,7 +109,7 @@ export function registerContextFinderTool(server: McpServer) {
             totalTokens: estimatedTokenUsage.total_tokens,
             cost: (estimatedTokenUsage.prompt_tokens * 0.00003 + estimatedTokenUsage.completion_tokens * 0.00006) / 1000,
             processingTime: executionTime,
-            toolsUsed: toolPlan.tools.map(t => t.name),
+            toolsUsed: ['database_query'],
             confidence: refinedResponse.confidence
           });
           
