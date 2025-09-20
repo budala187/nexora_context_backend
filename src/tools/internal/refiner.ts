@@ -70,7 +70,7 @@ Provide the answer:`;
       model: OPENAI_MODEL_REFINER,
       messages: [{ role: 'system', content: prompt }],
       temperature: 0.3,
-      max_tokens: 2000
+      max_completion_tokens: 2000
     });
     
     const content = response.choices[0]?.message?.content || 'Unable to generate response';
